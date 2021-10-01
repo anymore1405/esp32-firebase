@@ -5,9 +5,9 @@ void initFirebase(void *xQueue)
   FirebaseConfigObject *firebaseConfigObject = NULL;
   for (;;)
   {
-    if (firebaseConfigObject == NULL or firebaseConfigObject->xBinarySemaphore == NULL)
+    if (firebaseConfigObject == NULL)
     {
-      xQueuePeek(xQueue, firebaseConfigObject, 0);
+      xQueuePeek(xQueue, firebaseConfigObject, portMAX_DELAY);
     }
     else if (xSemaphoreTake(firebaseConfigObject->xBinarySemaphore, portMAX_DELAY) == pdTRUE)
     {
@@ -57,7 +57,7 @@ void firebaseListener(void *xQueue)
   {
     if (firebaseConfigObject == NULL)
     {
-      xQueuePeek(xQueue, firebaseConfigObject, 0);
+      xQueuePeek(xQueue, firebaseConfigObject, portMAX_DELAY);
     }
     else if (xSemaphoreTake(firebaseConfigObject->xBinarySemaphore, portMAX_DELAY) == pdTRUE)
     {

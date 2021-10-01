@@ -15,9 +15,6 @@ class FirebaseConfigObject {
         FirebaseAuth auth;
         FirebaseConfig config;
         SemaphoreHandle_t xBinarySemaphore;
-        FirebaseConfigObject(SemaphoreHandle_t xBinarySemaphore){
-            this->xBinarySemaphore = xBinarySemaphore;
-        }
 };
 
 void initFirebase(void *xQueue);
