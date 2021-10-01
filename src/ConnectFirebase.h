@@ -5,18 +5,7 @@
 
 #define DATABASE_URL "https://arduno-ir-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
-class FirebaseConfigObject {
-    public:
-        FirebaseData fbdo;
-        FirebaseData stream;
 
-        String path = "/test/int";
+void initFirebase(void *xBinarySemaphore);
 
-        FirebaseAuth auth;
-        FirebaseConfig config;
-        SemaphoreHandle_t xBinarySemaphore;
-};
-
-void initFirebase(void *xQueue);
-
-void firebaseListener(void *xQueue);
+void firebaseListener(void *xBinarySemaphore);
