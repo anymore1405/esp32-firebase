@@ -1,3 +1,7 @@
+#include <IRsend.h>
+#include <IRrecv.h>
+#include <IRremoteESP8266.h>
+#include <IRutils.h>
 #include "ConnectFirebase.h"
 FirebaseData fbdo;
 FirebaseData stream;
@@ -6,6 +10,19 @@ String path = "/test/int";
 
 FirebaseAuth auth;
 FirebaseConfig config;
+FirebaseJsonData f;
+
+const uint16_t kRecvPin = 14;
+const uint16_t kIrLedPin = 4;
+const uint32_t kBaudRate = 115200;
+const uint16_t kCaptureBufferSize = 1024;
+const uint8_t kTimeout = 50;
+const uint16_t kFrequency = 38000;
+uint16_t length;
+
+IRsend irsend(kIrLedPin);
+IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, false);
+decode_results results;
 
 void initFirebase(void *xBinarySemaphore)
 {
@@ -54,6 +71,7 @@ void initFirebase(void *xBinarySemaphore)
 
 void firebaseListener(void *xBinarySemaphore)
 {
+  irsend.begin();
   for (;;)
   {
     if (xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdTRUE)
@@ -82,6 +100,29 @@ void firebaseListener(void *xBinarySemaphore)
             if (stream.intData() == 1)
             {
               digitalWrite(2, HIGH);
+              Firebase.getArray(fbdo, "array/test");
+              Serial.println("Firebase.getArray");
+              Serial.println("Firebase.arrPtr");
+              fbdo.jsonArrayPtr()->get(f, 0);
+              Serial.println("arrPtr->get(f, 0)");
+              length = f.to<uint16_t>();
+              Serial.println("to uint");
+              uint16_t raw_array[length];
+              Serial.println("raw_array[length]");
+              for (int i = 1; i <= length; i++)
+              {
+                fbdo.jsonArrayPtr()->get(f, 0);
+                raw_array[i - 1] = f.to<uint16_t>();
+              }
+              // Send it out via the IR LED circuit.
+              irsend.sendRaw(raw_array, length, kFrequency);
+              // Deallocate the memory allocated by resultToRawArray().
+              // delete[] raw_array;
+              // Display a crude timestamp & notification.
+              uint32_t now = millis();
+              Serial.printf(
+                  "%06u.%03u: A message that was %d entries long was retransmitted.\n",
+                  now / 1000, now % 1000, length);
             }
             else
             {
@@ -92,5 +133,38 @@ void firebaseListener(void *xBinarySemaphore)
       }
       xSemaphoreGive(xBinarySemaphore);
     }
+    vTaskDelay(50);
+  }
+}
+
+void irreverce(void *paramter)
+{
+  irrecv.enableIRIn();
+  irsend.begin();
+  uint16_t raw_array[500];
+  for (;;)
+  {
+    Firebase.getArray(fbdo, "array/test");
+    Serial.println("Firebase.getArray");
+    Serial.println("Firebase.arrPtr");
+    fbdo.jsonArrayPtr()->get(f, 0);
+    Serial.println("arrPtr->get(f, 0)");
+    length = f.to<uint16_t>();
+    Serial.println("to uint");
+    Serial.println("raw_array[length]");
+    for (int i = 1; i <= length; i++)
+    {
+      fbdo.jsonArrayPtr()->get(f, i);
+      raw_array[i - 1] = f.to<uint16_t>();
+    }
+    // Send it out via the IR LED circuit.
+    irsend.sendRaw(raw_array, length, kFrequency);
+    // Deallocate the memory allocated by resultToRawArray().
+    // Display a crude timestamp & notification.
+    uint32_t now = millis();
+    Serial.printf(
+        "%06u.%03u: A message that was %d entries long was retransmitted.\n",
+        now / 1000, now % 1000, length);
+    vTaskDelay(50);
   }
 }
