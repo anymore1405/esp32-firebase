@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <FirebaseESP32.h>
-#include "addons/TokenHelper.h"
-#include "addons/RTDBHelper.h"
+// #include "addons/TokenHelper.h"
+// #include "addons/RTDBHelper.h"
 
 #define DATABASE_URL "https://arduno-ir-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
@@ -14,9 +14,12 @@ class FirebaseConfigObject {
 
         FirebaseAuth auth;
         FirebaseConfig config;
-        SemaphoreHandle_t *xBinarySemaphore;
+        SemaphoreHandle_t xBinarySemaphore;
+        FirebaseConfigObject(SemaphoreHandle_t xBinarySemaphore){
+            this->xBinarySemaphore = xBinarySemaphore;
+        }
 };
 
-void initFirebase(void *firebaseConfigObject);
+void initFirebase(void *xQueue);
 
-void firebaseListener(void *firebaseConfigObject);
+void firebaseListener(void *xQueue);
