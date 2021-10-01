@@ -1,20 +1,24 @@
 #include <Arduino.h>
 #include "ConnectWifi.h"
 #include "ConnectFirebase.h"
-SemaphoreHandle_t xBinarySemaphore;
+
+EventGroupHandle_t xCreatedEventGroup;
 void setup()
 {
   pinMode(2, OUTPUT);
   Serial.begin(115200);
-  xBinarySemaphore = xSemaphoreCreateBinary();
-  xSemaphoreGive(xBinarySemaphore);
+  xCreatedEventGroup = xEventGroupCreate();
+  if(xCreatedEventGroup == NULL){
+    Serial.println("xCreatedEventGroup failed");
+  }
+  
 
-  xTaskCreate(initWifi, "initWifi", 5000, xBinarySemaphore, 3, NULL);
+  xTaskCreate(initWifi, "initWifi", 4000, xCreatedEventGroup, 3, NULL);
   Serial.println("initWifi");
-  xTaskCreate(initFirebase, "initFirebase", 5000, xBinarySemaphore, 2, NULL);
+  xTaskCreate(initFirebase, "initFirebase", 4000, xCreatedEventGroup, 2, NULL);
   Serial.println("initFirebase");
-  // xTaskCreate(firebaseListener, "firebaseListener", 20000, xBinarySemaphore, 1, NULL);
-  xTaskCreate(irreverce, "irreverce", 10000, NULL, 2, NULL);
+  xTaskCreate(firebaseListener, "firebaseListener", 8000, xCreatedEventGroup, 1, NULL);
+  xTaskCreate(irreverce, "irreverce", 10000, xCreatedEventGroup, 2, NULL);
 
 }
 

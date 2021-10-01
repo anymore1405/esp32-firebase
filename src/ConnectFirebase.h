@@ -6,8 +6,8 @@
 #define DATABASE_URL "https://arduno-ir-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
 
-void initFirebase(void *xBinarySemaphore);
+void initFirebase(void *xCreatedEventGroup);
 
-void firebaseListener(void *xBinarySemaphore);
+void firebaseListener(void *xCreatedEventGroup);
 
-void irreverce(void *paramter);
+void irreverce(void *xCreatedEventGroup);

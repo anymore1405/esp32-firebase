@@ -1,12 +1,12 @@
 #include "ConnectWifi.h"
+#include "EventGroupConfig.h"
 
 
-void initWifi(void *xBinarySemaphore)
+void initWifi(void *xCreatedEventGroup)
 {
   while (1)
   {
-    if (xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdTRUE)
-    {
+    
       WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
       Serial.print("Connecting to Wi-Fi");
       while (WiFi.status() != WL_CONNECTED)
@@ -18,8 +18,7 @@ void initWifi(void *xBinarySemaphore)
       Serial.print("Connected with IP: ");
       Serial.println(WiFi.localIP());
       Serial.println();
-      xSemaphoreGive(xBinarySemaphore);
+      xEventGroupSetBits(xCreatedEventGroup, BIT_INIT_FIREBASE);
       vTaskDelete(NULL);
-    }
   }
 }

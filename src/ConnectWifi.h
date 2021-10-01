@@ -5,4 +5,4 @@
 #define WIFI_SSID "WIFI 303"
 #define WIFI_PASSWORD "500kchopass"
 
-void initWifi(void *xBinarySemaphore);
+void initWifi(void *xCreatedEventGroup);

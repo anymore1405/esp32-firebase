@@ -3,6 +3,8 @@
 #include <IRremoteESP8266.h>
 #include <IRutils.h>
 #include "ConnectFirebase.h"
+#include "EventGroupConfig.h"
+
 FirebaseData fbdo;
 FirebaseData stream;
 
@@ -24,11 +26,16 @@ IRsend irsend(kIrLedPin);
 IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, false);
 decode_results results;
 
-void initFirebase(void *xBinarySemaphore)
+void initFirebase(void *xCreatedEventGroup)
 {
+  EventBits_t uxBits;
   for (;;)
   {
-    if (xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdTRUE)
+    uxBits = xEventGroupWaitBits(
+        xCreatedEventGroup,
+        BIT_INIT_FIREBASE, pdFALSE, pdFALSE, portMAX_DELAY);
+
+    if ((uxBits & BIT_INIT_FIREBASE) != 0)
     {
       Serial.printf("Firebase Client v%s\n\n", FIREBASE_CLIENT_VERSION);
 
@@ -63,18 +70,22 @@ void initFirebase(void *xBinarySemaphore)
       // //Optional, set the size of HTTP response buffer
       // //Prevent out of memory for large payload but data may be truncated and can't determine its type.
       // fbdo.setResponseSize(1024); //minimum size is 1024 bytes
-      xSemaphoreGive(xBinarySemaphore);
+      xEventGroupSetBits(xCreatedEventGroup, BIT_FIREBASE_LISTENER);
       vTaskDelete(NULL);
     }
   }
 }
 
-void firebaseListener(void *xBinarySemaphore)
+void firebaseListener(void *xCreatedEventGroup)
 {
-  irsend.begin();
+  EventBits_t uxBits;
   for (;;)
   {
-    if (xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdTRUE)
+    uxBits = xEventGroupWaitBits(
+        xCreatedEventGroup,
+        BIT_FIREBASE_LISTENER, pdFALSE, pdFALSE, portMAX_DELAY);
+
+    if ((uxBits & BIT_FIREBASE_LISTENER) != 0)
     {
 
       if (Firebase.ready())
@@ -100,71 +111,85 @@ void firebaseListener(void *xBinarySemaphore)
             if (stream.intData() == 1)
             {
               digitalWrite(2, HIGH);
-              Firebase.getArray(fbdo, "array/test");
-              Serial.println("Firebase.getArray");
-              Serial.println("Firebase.arrPtr");
-              fbdo.jsonArrayPtr()->get(f, 0);
-              Serial.println("arrPtr->get(f, 0)");
-              length = f.to<uint16_t>();
-              Serial.println("to uint");
-              uint16_t raw_array[length];
-              Serial.println("raw_array[length]");
-              for (int i = 1; i <= length; i++)
-              {
-                fbdo.jsonArrayPtr()->get(f, 0);
-                raw_array[i - 1] = f.to<uint16_t>();
-              }
-              // Send it out via the IR LED circuit.
-              irsend.sendRaw(raw_array, length, kFrequency);
-              // Deallocate the memory allocated by resultToRawArray().
-              // delete[] raw_array;
-              // Display a crude timestamp & notification.
-              uint32_t now = millis();
-              Serial.printf(
-                  "%06u.%03u: A message that was %d entries long was retransmitted.\n",
-                  now / 1000, now % 1000, length);
+              xEventGroupClearBits(xCreatedEventGroup, BIT_IR_SEND);
+              xEventGroupSetBits(xCreatedEventGroup, BIT_IR_SEND);
             }
             else
             {
               digitalWrite(2, LOW);
+              xEventGroupSetBits(xCreatedEventGroup, BIT_IR_RV);
             }
           }
         }
       }
-      xSemaphoreGive(xBinarySemaphore);
     }
     vTaskDelay(50);
   }
 }
 
-void irreverce(void *paramter)
+void irreverce(void *xCreatedEventGroup)
 {
   irrecv.enableIRIn();
   irsend.begin();
   uint16_t raw_array[500];
+  EventBits_t uxBits;
   for (;;)
   {
-    Firebase.getArray(fbdo, "array/test");
-    Serial.println("Firebase.getArray");
-    Serial.println("Firebase.arrPtr");
-    fbdo.jsonArrayPtr()->get(f, 0);
-    Serial.println("arrPtr->get(f, 0)");
-    length = f.to<uint16_t>();
-    Serial.println("to uint");
-    Serial.println("raw_array[length]");
-    for (int i = 1; i <= length; i++)
+    uxBits = xEventGroupWaitBits(
+        xCreatedEventGroup,
+        BIT_IR_SEND | BIT_IR_RV, pdTRUE, pdFALSE, portMAX_DELAY);
+
+    if ((uxBits & BIT_IR_SEND) != 0)
     {
-      fbdo.jsonArrayPtr()->get(f, i);
-      raw_array[i - 1] = f.to<uint16_t>();
+      Firebase.getArray(fbdo, "array/test");
+      Serial.println("Firebase.getArray");
+      Serial.println("Firebase.arrPtr");
+      fbdo.jsonArrayPtr()->get(f, 0);
+      Serial.println("arrPtr->get(f, 0)");
+      length = f.to<uint16_t>();
+      Serial.println("to uint");
+      Serial.println("raw_array[length]");
+      for (int i = 1; i <= length; i++)
+      {
+        fbdo.jsonArrayPtr()->get(f, i);
+        raw_array[i - 1] = f.to<uint16_t>();
+      }
+      // Send it out via the IR LED circuit.
+      irsend.sendRaw(raw_array, length, kFrequency);
+      // Deallocate the memory allocated by resultToRawArray().
+      // Display a crude timestamp & notification.
+      uint32_t now = millis();
+      Serial.printf(
+          "%06u.%03u: A message that was %d entries long was retransmitted.\n",
+          now / 1000, now % 1000, length);
     }
-    // Send it out via the IR LED circuit.
-    irsend.sendRaw(raw_array, length, kFrequency);
-    // Deallocate the memory allocated by resultToRawArray().
-    // Display a crude timestamp & notification.
-    uint32_t now = millis();
-    Serial.printf(
-        "%06u.%03u: A message that was %d entries long was retransmitted.\n",
-        now / 1000, now % 1000, length);
+    if ((uxBits & BIT_IR_RV) != 0)
+    {
+      Firebase.getArray(fbdo, "array/test");
+      Serial.println("Firebase.getArray");
+      Serial.println("Firebase.arrPtr");
+      fbdo.jsonArrayPtr()->get(f, 0);
+      Serial.println("arrPtr->get(f, 0)");
+      length = f.to<uint16_t>();
+      Serial.println("to uint");
+      uint16_t raw_array[length];
+      Serial.println("raw_array[length]");
+      for (int i = 1; i <= length; i++)
+      {
+        fbdo.jsonArrayPtr()->get(f, 0);
+        raw_array[i - 1] = f.to<uint16_t>();
+      }
+      // Send it out via the IR LED circuit.
+      irsend.sendRaw(raw_array, length, kFrequency);
+      // Deallocate the memory allocated by resultToRawArray().
+      // delete[] raw_array;
+      // Display a crude timestamp & notification.
+      uint32_t now = millis();
+      Serial.printf(
+          "%06u.%03u: A message that was %d entries long was retransmitted.\n",
+          now / 1000, now % 1000, length);
+    }
+
     vTaskDelay(50);
   }
 }
