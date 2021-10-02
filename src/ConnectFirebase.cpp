@@ -4,6 +4,14 @@
 #include <IRutils.h>
 #include "ConnectFirebase.h"
 #include "EventGroupConfig.h"
+#include "Constant.h"
+#include <ESPRandom.h>
+#include <Preferences.h>
+#include "addons/TokenHelper.h"
+#include "addons/RTDBHelper.h"
+
+#define WIFI_SSID "WIFI 303"
+#define WIFI_PASSWORD "500kchopass"
 
 FirebaseData fbdo;
 FirebaseData stream;
@@ -14,38 +22,72 @@ FirebaseAuth auth;
 FirebaseConfig config;
 FirebaseJsonData f;
 
-const uint16_t kRecvPin = 14;
-const uint16_t kIrLedPin = 4;
 const uint32_t kBaudRate = 115200;
 const uint16_t kCaptureBufferSize = 1024;
 const uint8_t kTimeout = 50;
 const uint16_t kFrequency = 38000;
 uint16_t length;
 
-IRsend irsend(kIrLedPin);
-IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, false);
+IRsend irsend(IR_LED_PIN);
+IRrecv irrecv(IR_RV_PIN, kCaptureBufferSize, kTimeout, false);
 decode_results results;
 
 void initFirebase(void *xCreatedEventGroup)
 {
   EventBits_t uxBits;
+  Preferences preferences;
+  preferences.begin("data", true);
   for (;;)
   {
     uxBits = xEventGroupWaitBits(
         xCreatedEventGroup,
-        BIT_INIT_FIREBASE, pdFALSE, pdFALSE, portMAX_DELAY);
+        BIT_INIT_FIREBASE | BIT_INIT_WIFI | BIT_FIREBASE_LISTENER, pdFALSE, pdFALSE, portMAX_DELAY);
 
-    if ((uxBits & BIT_INIT_FIREBASE) != 0)
+    if ((uxBits & BIT_INIT_WIFI) != 0)
+    {
+      xEventGroupClearBits(xCreatedEventGroup, BIT_LED_START);
+
+      preferences.begin("data", false);
+      Serial.println(preferences.getString(UUID));
+      if (preferences.getString(UUID).isEmpty())
+      {
+        Serial.println("write uuid");
+        uint8_t uuid[16];
+        ESPRandom::uuid(uuid);
+        preferences.putString(UUID, ESPRandom::uuidToString(uuid));
+        preferences.putString(WIFI_SSID_KEY, WIFI_SSID);
+        preferences.putString(WIFI_PASSWORD_KEY, WIFI_PASSWORD);
+        preferences.putString(FIREBASE_KEY, "khactai14052000@gmail.com");
+        preferences.putString(FIREBASE_PASSWORD_KEY, "123456");
+      }
+      WiFi.begin(preferences.getString(WIFI_SSID_KEY).c_str(), preferences.getString(WIFI_PASSWORD_KEY).c_str());
+      Serial.print("Connecting to Wi-Fi");
+      while (WiFi.status() != WL_CONNECTED)
+      {
+        Serial.print(".");
+        delay(300);
+      }
+      Serial.println();
+      Serial.print("Connected with IP: ");
+      Serial.println(WiFi.localIP());
+      Serial.println();
+      xEventGroupClearBits(xCreatedEventGroup, BIT_LED_INIT_WIFI);
+      xEventGroupClearBits(xCreatedEventGroup, BIT_INIT_WIFI);
+      xEventGroupSetBits(xCreatedEventGroup, BIT_INIT_FIREBASE);
+      xEventGroupSetBits(xCreatedEventGroup, BIT_LED_INIT_FIREBASE);
+    }
+    else if ((uxBits & BIT_INIT_FIREBASE) != 0)
     {
       Serial.printf("Firebase Client v%s\n\n", FIREBASE_CLIENT_VERSION);
 
       config.api_key = "AIzaSyBuwoPc2k1LLwb0Rg0CQ5R3B-kU2G99Tz4";
-
-      //Assign the user sign in credentials
-      auth.user.email = "khactai14052000@gmail.com";
-      auth.user.password = "123456";
+      
+      Serial.println(preferences.getString(FIREBASE_KEY).c_str());
+      Serial.println(preferences.getString(FIREBASE_PASSWORD_KEY).c_str());
+      auth.user.email = preferences.getString(FIREBASE_KEY).c_str();
+      auth.user.password = preferences.getString(FIREBASE_PASSWORD_KEY).c_str();
       config.database_url = DATABASE_URL;
-      //   firebaseConfigObject.config.token_status_callback = tokenStatusCallback;
+      config.token_status_callback = tokenStatusCallback;
 
       //Initialize the library with the Firebase authen and config.
       Firebase.begin(&config, &auth);
@@ -72,22 +114,10 @@ void initFirebase(void *xCreatedEventGroup)
       // fbdo.setResponseSize(1024); //minimum size is 1024 bytes
       xEventGroupSetBits(xCreatedEventGroup, BIT_FIREBASE_LISTENER);
       xEventGroupSetBits(xCreatedEventGroup, BIT_LED_FIREBASE_WORKING);
+      xEventGroupClearBits(xCreatedEventGroup, BIT_INIT_FIREBASE);
       xEventGroupClearBits(xCreatedEventGroup, BIT_LED_INIT_FIREBASE);
-      vTaskDelete(NULL);
     }
-  }
-}
-
-void firebaseListener(void *xCreatedEventGroup)
-{
-  EventBits_t uxBits;
-  for (;;)
-  {
-    uxBits = xEventGroupWaitBits(
-        xCreatedEventGroup,
-        BIT_FIREBASE_LISTENER, pdFALSE, pdFALSE, portMAX_DELAY);
-
-    if ((uxBits & BIT_FIREBASE_LISTENER) != 0)
+    else if ((uxBits & BIT_FIREBASE_LISTENER) != 0)
     {
 
       if (Firebase.ready())
