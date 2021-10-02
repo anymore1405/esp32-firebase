@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "ConnectWifi.h"
 #include "ConnectFirebase.h"
+#include "ConnectLedSignal.h"
 
 EventGroupHandle_t xCreatedEventGroup;
 void setup()
@@ -11,8 +12,7 @@ void setup()
   if(xCreatedEventGroup == NULL){
     Serial.println("xCreatedEventGroup failed");
   }
-  
-
+  xTaskCreate(ledSignal, "ledSignal", 500, xCreatedEventGroup, 3, NULL);
   xTaskCreate(initWifi, "initWifi", 4000, xCreatedEventGroup, 3, NULL);
   Serial.println("initWifi");
   xTaskCreate(initFirebase, "initFirebase", 4000, xCreatedEventGroup, 2, NULL);

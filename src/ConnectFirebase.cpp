@@ -71,6 +71,8 @@ void initFirebase(void *xCreatedEventGroup)
       // //Prevent out of memory for large payload but data may be truncated and can't determine its type.
       // fbdo.setResponseSize(1024); //minimum size is 1024 bytes
       xEventGroupSetBits(xCreatedEventGroup, BIT_FIREBASE_LISTENER);
+      xEventGroupSetBits(xCreatedEventGroup, BIT_LED_FIREBASE_WORKING);
+      xEventGroupClearBits(xCreatedEventGroup, BIT_LED_INIT_FIREBASE);
       vTaskDelete(NULL);
     }
   }
@@ -110,13 +112,10 @@ void firebaseListener(void *xCreatedEventGroup)
           {
             if (stream.intData() == 1)
             {
-              digitalWrite(2, HIGH);
-              xEventGroupClearBits(xCreatedEventGroup, BIT_IR_SEND);
               xEventGroupSetBits(xCreatedEventGroup, BIT_IR_SEND);
             }
             else
             {
-              digitalWrite(2, LOW);
               xEventGroupSetBits(xCreatedEventGroup, BIT_IR_RV);
             }
           }
