@@ -10,3 +10,5 @@
 #define BIT_LED_FIREBASE_WORKING (1 << 7)
 
 #define BIT_INIT_WIFI (1 << 8)
+
+#define BIT_FIREBASE_UID_DEVICE (1 << 9)

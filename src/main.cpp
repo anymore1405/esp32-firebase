@@ -17,9 +17,9 @@ void setup()
   xEventGroupSetBits(xCreatedEventGroup, BIT_LED_INIT_WIFI);
   xEventGroupSetBits(xCreatedEventGroup, BIT_INIT_WIFI);
   xTaskCreate(ledSignal, "ledSignal", 500, xCreatedEventGroup, 3, NULL);
-  xTaskCreate(initFirebase, "initFirebase", 20000, xCreatedEventGroup, 2, NULL);
+  xTaskCreate(initFirebase, "initFirebase", 30000, xCreatedEventGroup, 2, NULL);
   Serial.println("initFirebase");
-  xTaskCreate(irreverce, "irreverce", 10000, xCreatedEventGroup, 2, NULL);
+  xTaskCreate(irreverce, "irreverce", 15000, xCreatedEventGroup, 2, NULL);
 
 }
 

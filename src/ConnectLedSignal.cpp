@@ -27,7 +27,7 @@ void ledSignal(void *xCreatedEventGroup)
             state = !state;
             vTaskDelay(100);
         }
-        else if ((uxBits & BIT_LED_INIT_FIREBASE) != 0)
+        else if ((uxBits & BIT_LED_INIT_FIREBASE) != 0 || (uxBits & BIT_IR_RV) != 0)
         {
             digitalWrite(2, state ? HIGH : LOW);
             state = !state;
