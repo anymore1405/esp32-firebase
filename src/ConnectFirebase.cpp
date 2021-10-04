@@ -22,7 +22,6 @@ FirebaseConfig config;
 FirebaseJsonData f;
 FirebaseJsonData dataStream;
 FirebaseJson json;
-FirebaseJsonArray jsonArray;
 
 const uint32_t kBaudRate = 115200;
 const uint16_t kCaptureBufferSize = 1024;
@@ -54,11 +53,6 @@ void initFirebase(void *xCreatedEventGroup)
         Serial.println("write uuid");
         uint8_t uuid[8];
         ESPRandom::uuid(uuid);
-        preferences.putString(UUID, ESPRandom::uuidToString(uuid));
-        preferences.putString(WIFI_SSID_KEY, WIFI_SSID);
-        preferences.putString(WIFI_PASSWORD_KEY, WIFI_PASSWORD);
-        preferences.putString(FIREBASE_KEY, "hoanghuyvvv@gmail.com");
-        preferences.putString(FIREBASE_PASSWORD_KEY, "123456");
       }
       WiFi.begin(preferences.getString(WIFI_SSID_KEY).c_str(), preferences.getString(WIFI_PASSWORD_KEY).c_str());
       Serial.print("Connecting to Wi-Fi");
@@ -89,33 +83,12 @@ void initFirebase(void *xCreatedEventGroup)
       config.database_url = DATABASE_URL;
       config.token_status_callback = tokenStatusCallback;
 
-      //Initialize the library with the Firebase authen and config.
       Firebase.begin(&config, &auth);
 
-      // Firebase.FCM.setServerKey("AAAAuZ7LBGE:APA91bE8i223J1XUU0snbgjbisVdoq1VmMeHiNHztIKjF9TSgFcf1QX8VAcy-WaSV8AB6eobxLxca6AMUEkCShForLjft49tfLa-p4ZdifEcWAhDTnvV9V3oaZxLC2VykNFOMBkpv7ax");
-      //Optional, set AP reconnection in setup()
-
       Firebase.reconnectWiFi(true);
-
-      //Optional, set number of error retry
-      // Firebase.RTDB.setMaxRetry(&fbdo, 3);
-
-      // //Optional, set number of error resumable queues
-      // Firebase.RTDB.setMaxErrorQueue(&fbdo, 30);
-
-      // //Optional, use classic HTTP GET and POST requests.
-      // //This option allows get and delete functions (PUT and DELETE HTTP requests) works for
-      // //device connected behind the Firewall that allows only GET and POST requests.
-      // Firebase.RTDB.enableClassicRequest(&fbdo, true);
-
-      // //Optional, set the size of HTTP response buffer
-      // //Prevent out of memory for large payload but data may be truncated and can't determine its type.
-      // fbdo.setResponseSize(1024); //minimum size is 1024 bytes
       vTaskDelay(200);
       xEventGroupSetBits(xCreatedEventGroup, BIT_FIREBASE_UID_DEVICE);
-      xEventGroupSetBits(xCreatedEventGroup, BIT_LED_FIREBASE_WORKING);
       xEventGroupClearBits(xCreatedEventGroup, BIT_INIT_FIREBASE);
-      xEventGroupClearBits(xCreatedEventGroup, BIT_LED_INIT_FIREBASE);
     }
     else if ((uxBits & BIT_FIREBASE_UID_DEVICE) != 0)
     {
@@ -153,6 +126,8 @@ void initFirebase(void *xCreatedEventGroup)
         }
       }
       xEventGroupSetBits(xCreatedEventGroup, BIT_FIREBASE_LISTENER);
+      xEventGroupSetBits(xCreatedEventGroup, BIT_LED_FIREBASE_WORKING);
+      xEventGroupClearBits(xCreatedEventGroup, BIT_LED_INIT_FIREBASE);
     }
     else if ((uxBits & BIT_FIREBASE_LISTENER) != 0)
     {
@@ -197,12 +172,15 @@ void initFirebase(void *xCreatedEventGroup)
   }
 }
 
-void irreverce(void *xCreatedEventGroup)
+void irRemote(void *xCreatedEventGroup)
 {
   irrecv.enableIRIn();
   irsend.begin();
   uint16_t raw_array[500];
   EventBits_t uxBits;
+
+  FirebaseJsonArray jsonArray;
+
   for (;;)
   {
     uxBits = xEventGroupWaitBits(
@@ -212,7 +190,9 @@ void irreverce(void *xCreatedEventGroup)
     if ((uxBits & BIT_IR_SEND) != 0)
     {
       stream.jsonObject().get(dataStream, "/url");
-      Firebase.getArray(fbdo, dataStream.stringValue);
+      while(!Firebase.getArray(fbdo, dataStream.stringValue)){
+        Serial.println("re fetch");
+      };
       Serial.println("Firebase.getArray");
       length = fbdo.jsonArrayPtr()->size();
       Serial.println("to uint");
@@ -222,16 +202,13 @@ void irreverce(void *xCreatedEventGroup)
         fbdo.jsonArrayPtr()->get(f, i);
         raw_array[i] = f.to<uint16_t>();
       }
-      // Send it out via the IR LED circuit.
       irsend.sendRaw(raw_array, length, kFrequency);
-      // Deallocate the memory allocated by resultToRawArray().
-      // Display a crude timestamp & notification.
       uint32_t now = millis();
       Serial.printf(
           "%06u.%03u: A message that was %d entries long was retransmitted.\n",
           now / 1000, now % 1000, length);
       Firebase.deleteNode(fbdo, stream.streamPath() + stream.dataPath());
-      stream.clear();
+      fbdo.jsonArrayPtr()->clear();
       xEventGroupClearBits(xCreatedEventGroup, BIT_IR_SEND);
     }
     if ((uxBits & BIT_IR_RV) != 0)
@@ -239,16 +216,19 @@ void irreverce(void *xCreatedEventGroup)
       stream.jsonObject().get(dataStream, "/url");
       if (irrecv.decode(&results))
       {
+        jsonArray.clear();
         Serial.println(results.rawlen);
         uint16_t *raw_rv_array = resultToRawArray(&results);
         length = getCorrectedRawLength(&results);
-        jsonArray.clear();
+
         for (int i = 0; i < length; i++)
         {
           jsonArray.add(raw_rv_array[i]);
         }
         Serial.println(dataStream.stringValue);
-        Firebase.setArrayAsync(fbdo, dataStream.stringValue, jsonArray);
+        while(!Firebase.setArrayAsync(fbdo, dataStream.stringValue, jsonArray)){
+          Serial.println("re push");
+        };
 
         delete[] raw_rv_array;
 
@@ -257,6 +237,7 @@ void irreverce(void *xCreatedEventGroup)
             "%06u.%03u: A message that push %d entries to Firebase.\n",
             now / 1000, now % 1000, length);
         irrecv.resume();
+        jsonArray.clear();
         Firebase.deleteNode(fbdo, stream.streamPath() + stream.dataPath());
         xEventGroupClearBits(xCreatedEventGroup, BIT_IR_RV);
       }

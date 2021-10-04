@@ -7,4 +7,4 @@
 
 void initFirebase(void *xCreatedEventGroup);
 
-void irreverce(void *xCreatedEventGroup);
+void irRemote(void *xCreatedEventGroup);

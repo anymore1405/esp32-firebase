@@ -21,17 +21,17 @@ void ledSignal(void *xCreatedEventGroup)
             }
             vTaskDelay(50);
         }
-        else if ((uxBits & BIT_LED_INIT_WIFI) != 0)
+        else if ((uxBits & BIT_LED_INIT_WIFI) != 0 || (uxBits & BIT_IR_RV) != 0 || (uxBits & BIT_IR_SEND) != 0)
         {
             digitalWrite(2, state ? HIGH : LOW);
             state = !state;
             vTaskDelay(100);
         }
-        else if ((uxBits & BIT_LED_INIT_FIREBASE) != 0 || (uxBits & BIT_IR_RV) != 0)
+        else if ((uxBits & BIT_LED_INIT_FIREBASE) != 0)
         {
             digitalWrite(2, state ? HIGH : LOW);
             state = !state;
-            vTaskDelay(500);
+            vTaskDelay(300);
         }
         else if ((uxBits & BIT_LED_FIREBASE_WORKING) != 0)
         {
