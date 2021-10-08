@@ -19,9 +19,9 @@ void setup()
 
   xTaskCreate(ledSignal, "ledSignal", 700, xCreatedEventGroup, 3, NULL);
 
-  xTaskCreate(initFirebase, "initFirebase", 30000, xCreatedEventGroup, 2, NULL);
+  xTaskCreate(initFirebase, "initFirebase", 10000, xCreatedEventGroup, 2, NULL);
 
-  xTaskCreate(irRemote, "irRemote", 30000, xCreatedEventGroup, 2, NULL);
+  xTaskCreate(irRemote, "irRemote", 10000, xCreatedEventGroup, 2, NULL);
 
 }
 

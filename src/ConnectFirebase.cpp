@@ -10,7 +10,7 @@
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
-#define WIFI_SSID "WIFI 303"
+#define WIFI_SSID "😒😒😒"
 #define WIFI_PASSWORD "500kchopass"
 
 FirebaseData fbdo;
@@ -48,11 +48,13 @@ void initFirebase(void *xCreatedEventGroup)
     {
       xEventGroupClearBits(xCreatedEventGroup, BIT_LED_START);
 
+      preferences.putString(WIFI_SSID_KEY, WIFI_SSID);
+      preferences.putString(WIFI_PASSWORD_KEY, WIFI_PASSWORD);
       if (preferences.getString(UUID).isEmpty())
       {
         Serial.println("write uuid");
         uint8_t uuid[8];
-        ESPRandom::uuid(uuid);
+        preferences.putString(UUID, ESPRandom::uuidToString(uuid));
       }
       WiFi.begin(preferences.getString(WIFI_SSID_KEY).c_str(), preferences.getString(WIFI_PASSWORD_KEY).c_str());
       Serial.print("Connecting to Wi-Fi");
@@ -199,8 +201,11 @@ void irRemote(void *xCreatedEventGroup)
       Serial.println("raw_array[length]");
       for (int i = 0; i < length; i++)
       {
-        fbdo.jsonArrayPtr()->get(f, i);
-        raw_array[i] = f.to<uint16_t>();
+        f.clear();
+        while(!fbdo.jsonArrayPtr()->get(f, i)){
+          Serial.println("fbdo.jsonArrayPtr error, re-get");
+        }
+        raw_array[i] = f.intValue;
       }
       irsend.sendRaw(raw_array, length, kFrequency);
       uint32_t now = millis();
