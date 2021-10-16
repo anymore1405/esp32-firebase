@@ -10,8 +10,8 @@
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
-#define WIFI_SSID "😒😒😒"
-#define WIFI_PASSWORD "500kchopass"
+#include <WiFiManager.h>
+WiFiManager wifiManager;
 
 FirebaseData fbdo;
 FirebaseData stream;
@@ -47,26 +47,13 @@ void initFirebase(void *xCreatedEventGroup)
     if ((uxBits & BIT_INIT_WIFI) != 0)
     {
       xEventGroupClearBits(xCreatedEventGroup, BIT_LED_START);
-
-      preferences.putString(WIFI_SSID_KEY, WIFI_SSID);
-      preferences.putString(WIFI_PASSWORD_KEY, WIFI_PASSWORD);
       if (preferences.getString(UUID).isEmpty())
       {
         Serial.println("write uuid");
         uint8_t uuid[8];
         preferences.putString(UUID, ESPRandom::uuidToString(uuid));
       }
-      WiFi.begin(preferences.getString(WIFI_SSID_KEY).c_str(), preferences.getString(WIFI_PASSWORD_KEY).c_str());
-      Serial.print("Connecting to Wi-Fi");
-      while (WiFi.status() != WL_CONNECTED)
-      {
-        Serial.print(".");
-        delay(300);
-      }
-      Serial.println();
-      Serial.print("Connected with IP: ");
-      Serial.println(WiFi.localIP());
-      Serial.println();
+      wifiManager.autoConnect("SmartRemote Config Connection");
       xEventGroupClearBits(xCreatedEventGroup, BIT_LED_INIT_WIFI);
       xEventGroupClearBits(xCreatedEventGroup, BIT_INIT_WIFI);
       xEventGroupSetBits(xCreatedEventGroup, BIT_INIT_FIREBASE);
@@ -75,7 +62,6 @@ void initFirebase(void *xCreatedEventGroup)
     else if ((uxBits & BIT_INIT_FIREBASE) != 0)
     {
       Serial.printf("Firebase Client v%s\n\n", FIREBASE_CLIENT_VERSION);
-
       config.api_key = "AIzaSyBuwoPc2k1LLwb0Rg0CQ5R3B-kU2G99Tz4";
 
       Serial.println(preferences.getString(FIREBASE_KEY).c_str());
